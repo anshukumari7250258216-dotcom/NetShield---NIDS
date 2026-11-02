@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Left Column: Detection Thresholds & Blocklist -->
+    <div class="col-lg-7">
+        <!-- Detection Thresholds Configuration Card -->
+        <div class="soc-card mb-4">
+            <div class="soc-card-header">
+                <div class="soc-card-title">
+                    <i class="bi bi-sliders text-cyan"></i> Intrusion Detection Rule Thresholds
+                </div>
+            </div>
+            <div class="soc-card-body">
+                <form id="settings-thresholds-form">
+                    <!-- Port Scan Settings -->
+                    <h6 class="text-info fw-bold mb-3"><i class="bi bi-hdd-network"></i> Port Scan Reconnaissance Rule</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-6">
+                            <label class="form-label text-dim small fw-bold">DISTINCT PORTS THRESHOLD</label>
+                            <input type="number" class="form-control-soc font-mono" id="port_scan_threshold" 
+                                   value="{{ settings.get('port_scan_threshold', '10') }}" min="2" max="1000" required>
+                            <div class="text-dim small mt-1">Number of scanned ports to trigger an alert.</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label text-dim small fw-bold">SLIDING WINDOW (SECONDS)</label>
+                            <input type="number" class="form-control-soc font-mono" id="port_scan_window" 
+                                   value="{{ settings.get('port_scan_window', '15') }}" min="1" max="300" required>
+                            <div class="text-dim small mt-1">Evaluation time window in seconds.</div>
+                        </div>
+                    </div>
+
+                    <!-- SYN Flood Settings -->
+                    <h6 class="text-danger fw-bold mb-3"><i class="bi bi-lightning-charge"></i> TCP SYN Flood / DoS Rule</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-6">
+                            <label class="form-label text-dim small fw-bold">SYN PACKET THRESHOLD</label>
+                            <input type="number" class="form-control-soc font-mono" id="syn_flood_threshold" 
+                                   value="{{ settings.get('syn_flood_threshold', '25') }}" min="5" max="5000" required>
+                            <div class="text-dim small mt-1">Unanswered SYN packets threshold.</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label text-dim small fw-bold">TIME WINDOW (SECONDS)</label>
+                            <input type="number" class="form-control-soc font-mono" id="syn_flood_window" 
+                                   value="{{ settings.get('syn_flood_window', '5') }}" min="1" max="120" required>
+                        </div>
+                    </div>
+
+                    <!-- ICMP Flood Settings -->
+                    <h6 class="text-warning fw-bold mb-3"><i class="bi bi-water"></i> ICMP Ping Flood Rule</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-6">
+                            <label class="form-label text-dim small fw-bold">ECHO REQUEST THRESHOLD</label>
+                            <input type="number" class="form-control-soc font-mono" id="icmp_flood_threshold" 
+                                   value="{{ settings.get('icmp_flood_threshold', '15') }}" min="5" max="1000" required>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label text-dim small fw-bold">TIME WINDOW (SECONDS)</label>
+                            <input type="number" class="form-control-soc font-mono" id="icmp_flood_window" 
+                                   value="{{ settings.get('icmp_flood_window', '5') }}" min="1" max="60" required>
+                        </div>
+                    </div>
+
+                    <!-- Volumetric Frequency Settings -->
+                    <h6 class="text-primary fw-bold mb-3"><i class="bi bi-speedometer"></i> Volumetric Connection Frequency Rule</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-6">
+                            <label class="form-label text-dim small fw-bold">PACKET RATE THRESHOLD</label>
+                            <input type="number" class="form-control-soc font-mono" id="conn_freq_threshold" 
+                                   value="{{ settings.get('conn_freq_threshold', '60') }}" min="10" max="10000" required>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label text-dim small fw-bold">TIME WINDOW (SECONDS)</label>
+                            <input type="number" class="form-control-soc font-mono" id="conn_freq_window" 
+                                   value="{{ settings.get('conn_freq_window', '10') }}" min="1" max="120" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-soc-primary">
+                        <i class="bi bi-check-circle-fill"></i> Save Detection Thresholds
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- IP Threat Blocklist Card -->
+        <div class="soc-card">
+            <div class="soc-card-header">
+                <div class="soc-card-title">
+                    <i class="bi bi-slash-circle text-danger"></i> Active Threat IP Blocklist
+                </div>
+            </div>
+            <div class="soc-card-body">
+                <!-- Add Blocklist Form -->
+                <form id="add-blocklist-form" class="row g-2 mb-3">
+                    <div class="col-md-5">
+                        <input type="text" class="form-control-soc font-mono" id="blocklist-ip" placeholder="IP Address (e.g. 198.51.100.23)" required>
+                    </div>
+                    <div class="col-md-5">
+                        <input type="text" class="form-control-soc" id="blocklist-reason" placeholder="Threat Reason / Feed Name" required>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-soc-danger w-100">
+                            <i class="bi bi-plus-lg"></i> Add
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Blocklist Table -->
+                <div class="table-responsive">
+                    <table class="table-soc">
+                        <thead>
+                            <tr>
+                                <th>Blocked IP</th>
+                                <th>Reason / Intelligence Note</th>
+                                <th>Date Added</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="blocklist-tbody">
+                            {% for b in blocklist %}
+                            <tr id="block-row-{{ b.ip | replace('.', '-') }}">
+                                <td class="font-mono text-danger fw-bold">{{ b.ip }}</td>
+                                <td class="small">{{ b.reason }}</td>
+                                <td class="font-mono small text-dim">{{ b.added_at[:19] }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-soc-outline text-danger py-0 px-2" onclick="deleteBlocklistIP('{{ b.ip }}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-center text-muted py-3">No IPs currently blocked.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Database Maintenance & About NetShield -->
+    <div class="col-lg-5">
+        <!-- Database Maintenance Card -->
+        <div class="soc-card mb-4">
+            <div class="soc-card-header">
+                <div class="soc-card-title">
+                    <i class="bi bi-database text-warning"></i> SQLite Telemetry Store
+                </div>
+            </div>
+            <div class="soc-card-body">
+                <div class="row g-3 mb-4">
+                    <div class="col-6">
+                        <span class="text-dim small">DATABASE SIZE</span>
+                        <div class="fs-5 fw-bold font-mono text-warning" id="db-size-label">{{ db_size_kb }} KB</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-dim small">EVENTS STORED</span>
+                        <div class="fs-5 fw-bold font-mono text-cyan" id="db-events-label">{{ event_count }}</div>
+                    </div>
+                    <div class="col-12">
+                        <span class="text-dim small">ALERTS STORED</span>
+                        <div class="fs-5 fw-bold font-mono text-danger" id="db-alerts-label">{{ alert_count }}</div>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-soc-outline" id="btn-seed-data">
+                        <i class="bi bi-cloud-arrow-down-fill text-cyan"></i> Seed Realistic SOC Demo Data
+                    </button>
+                    <button type="button" class="btn btn-soc-outline text-danger" id="btn-clear-db">
+                        <i class="bi bi-trash-fill"></i> Purge All Events & Alerts
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- About NetShield Project Card -->
+        <div class="soc-card">
+            <div class="soc-card-header">
+                <div class="soc-card-title">
+                    <i class="bi bi-info-circle text-info"></i> About NetShield-NIDS
+                </div>
+            </div>
+            <div class="soc-card-body small text-muted">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="p-2 rounded" style="background: rgba(0, 242, 254, 0.1); border: 1px solid var(--border-color);">
+                        <i class="bi bi-shield-lock-fill text-cyan fs-2"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-main fs-6">NetShield Security Platform</div>
+                        <span class="text-dim">{{ version }}</span>
+                    </div>
+                </div>
+
+                <p class="mb-2">
+                    NetShield is an enterprise-grade Network Intrusion Detection & Monitoring System engineered for BCA Computer Science portfolios and SOC operations demonstration.
+                </p>
+
+                <h6 class="fw-bold text-main mt-3 mb-1">Architecture Highlights:</h6>
+                <ul class="ps-3 mb-3 text-dim">
+                    <li>Session-based analyst authentication and access control</li>
+                    <li>Multi-threaded Scapy packet parser with BPF filter support</li>
+                    <li>Stateful sliding-window anomaly & reconnaissance detection</li>
+                    <li>RFC 1918/4193 CIDR subnet topology arithmetic</li>
+                    <li>Zero-dependency SQLite WAL-mode event persistence</li>
+                    <li>Themeable Dark/Light Security Operations UI</li>
+                </ul>
+
+                <h6 class="fw-bold text-main mb-1">Ethical Cybersecurity Compliance:</h6>
+                <p class="text-dim mb-0">
+                    NetShield operates in passive inspection mode and does not conduct unauthorized remote scans or offensive actions. Built for educational and defensive security monitoring.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    // Save thresholds form
+    document.getElementById("settings-thresholds-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const payload = {
+            port_scan_threshold: document.getElementById("port_scan_threshold").value,
+            port_scan_window: document.getElementById("port_scan_window").value,
+            syn_flood_threshold: document.getElementById("syn_flood_threshold").value,
+            syn_flood_window: document.getElementById("syn_flood_window").value,
+            icmp_flood_threshold: document.getElementById("icmp_flood_threshold").value,
+            icmp_flood_window: document.getElementById("icmp_flood_window").value,
+            conn_freq_threshold: document.getElementById("conn_freq_threshold").value,
+            conn_freq_window: document.getElementById("conn_freq_window").value
+        };
+
+        try {
+            const res = await fetch("/api/settings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.status === "success") {
+                showToast("Detection thresholds successfully updated.", "success");
+            } else {
+                showToast(data.message, "error");
+            }
+        } catch (err) {
+            showToast("Failed to save settings.", "error");
+        }
+    });
+
+    // Add blocklist IP
+    document.getElementById("add-blocklist-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const ip = document.getElementById("blocklist-ip").value.trim();
+        const reason = document.getElementById("blocklist-reason").value.trim();
+
+        try {
+            const res = await fetch("/api/blocklist", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ip: ip, reason: reason })
+            });
+            const json = await res.json();
+            if (json.status === "success") {
+                showToast(json.message, "success");
+                reloadBlocklistUI(json.blocklist);
+                document.getElementById("blocklist-ip").value = "";
+                document.getElementById("blocklist-reason").value = "";
+            } else {
+                showToast(json.message, "error");
+            }
+        } catch (err) {
+            showToast("Failed to add blocklist entry.", "error");
+        }
+    });
+
+    // Seed Demo Data
+    document.getElementById("btn-seed-data").addEventListener("click", async () => {
+        try {
+            const res = await fetch("/api/database/seed", { method: "POST" });
+            const data = await res.json();
+            showToast(data.message, "success");
+            setTimeout(() => location.reload(), 1200);
+        } catch (err) {
+            showToast("Seeding failed.", "error");
+        }
+    });
+
+    // Clear Database
+    document.getElementById("btn-clear-db").addEventListener("click", async () => {
+        if (!confirm("Are you sure you want to purge all network events and intrusion alerts? This action is irreversible.")) {
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/database/clear", { method: "POST" });
+            const data = await res.json();
+            showToast(data.message, "info");
+            setTimeout(() => location.reload(), 1200);
+        } catch (err) {
+            showToast("Purge failed.", "error");
+        }
+    });
+});
+
+async function deleteBlocklistIP(ip) {
+    if (!confirm(`Remove ${ip} from the threat blocklist?`)) return;
+
+    try {
+        const res = await fetch(`/api/blocklist/${encodeURIComponent(ip)}`, { method: "DELETE" });
+        const data = await res.json();
+        if (data.status === "success") {
+            showToast(data.message, "info");
+            reloadBlocklistUI(data.blocklist);
+        } else {
+            showToast(data.message, "error");
+        }
+    } catch (err) {
+        showToast("Failed to remove IP from blocklist.", "error");
+    }
+}
+
+function reloadBlocklistUI(blocklist) {
+    const tbody = document.getElementById("blocklist-tbody");
+    if (!blocklist || !blocklist.length) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">No IPs currently blocked.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = blocklist.map(b => `
+        <tr id="block-row-${b.ip.replace(/\./g, '-')}">
+            <td class="font-mono text-danger fw-bold">${escapeHtml(b.ip)}</td>
+            <td class="small">${escapeHtml(b.reason)}</td>
+            <td class="font-mono small text-dim">${escapeHtml(b.added_at.slice(0, 19))}</td>
+            <td>
+                <button class="btn btn-sm btn-soc-outline text-danger py-0 px-2" onclick="deleteBlocklistIP('${b.ip}')">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join("");
+}
+</script>
+{% endblock %}
+

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-card" style="max-width: 500px;">
+        <div class="auth-header">
+            <!-- Professional SVG Shield & Network Node Logo -->
+            <svg class="auth-logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M50 8L15 22V50C15 72 30 90 50 96C70 90 85 72 85 50V22L50 8Z" 
+                      stroke="url(#reg-shield-grad)" stroke-width="5" fill="rgba(0, 242, 254, 0.08)"/>
+                <circle cx="50" cy="38" r="8" fill="#00f2fe"/>
+                <circle cx="34" cy="58" r="6" fill="#3b82f6"/>
+                <circle cx="66" cy="58" r="6" fill="#8b5cf6"/>
+                <circle cx="50" cy="74" r="5" fill="#00f2fe"/>
+                <line x1="50" y1="38" x2="34" y2="58" stroke="#00f2fe" stroke-width="2.5" stroke-dasharray="2 2"/>
+                <line x1="50" y1="38" x2="66" y2="58" stroke="#8b5cf6" stroke-width="2.5" stroke-dasharray="2 2"/>
+                <line x1="34" y1="58" x2="50" y2="74" stroke="#3b82f6" stroke-width="2.5"/>
+                <line x1="66" y1="58" x2="50" y2="74" stroke="#00f2fe" stroke-width="2.5"/>
+                <defs>
+                    <linearGradient id="reg-shield-grad" x1="15" y1="8" x2="85" y2="96" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#00f2fe"/>
+                        <stop offset="0.5" stop-color="#3b82f6"/>
+                        <stop offset="1" stop-color="#8b5cf6"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+            <h2 class="auth-title">Register SOC Operator</h2>
+            <p class="auth-subtitle">Create a certified analyst account for network telemetry monitoring.</p>
+        </div>
+
+        <form method="POST" action="/register" id="register-form">
+            <div class="row g-3 mb-3">
+                <div class="col-sm-6">
+                    <label class="form-label text-dim small fw-bold">OPERATOR USERNAME</label>
+                    <input type="text" name="username" class="form-control-soc font-mono" placeholder="analyst_sec" 
+                           value="{{ username | default('') }}" required pattern="[A-Za-z0-9_]{3,20}" title="3-20 letters, numbers, or underscore">
+                </div>
+                <div class="col-sm-6">
+                    <label class="form-label text-dim small fw-bold">SOC ROLE / CLEARANCE</label>
+                    <select name="role" class="form-select-soc">
+                        <option value="Security Analyst" {% if role == 'Security Analyst' %}selected{% endif %}>Security Analyst</option>
+                        <option value="Incident Responder" {% if role == 'Incident Responder' %}selected{% endif %}>Incident Responder</option>
+                        <option value="SOC Team Lead" {% if role == 'SOC Team Lead' %}selected{% endif %}>SOC Team Lead</option>
+                        <option value="Security Engineer" {% if role == 'Security Engineer' %}selected{% endif %}>Security Engineer</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-dim small fw-bold">FULL NAME</label>
+                <input type="text" name="full_name" class="form-control-soc" placeholder="e.g. Alex Vance" 
+                       value="{{ full_name | default('') }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-dim small fw-bold">CORPORATE / ACADEMIC EMAIL</label>
+                <input type="email" name="email" class="form-control-soc" placeholder="alex.vance@netshield.local" 
+                       value="{{ email | default('') }}" required>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-sm-6">
+                    <label class="form-label text-dim small fw-bold">PASSWORD (MIN 6 CHARS)</label>
+                    <input type="password" name="password" id="reg-password" class="form-control-soc" 
+                           placeholder="••••••••••••" minlength="6" required>
+                </div>
+                <div class="col-sm-6">
+                    <label class="form-label text-dim small fw-bold">CONFIRM PASSWORD</label>
+                    <input type="password" name="confirm_password" id="reg-confirm-password" class="form-control-soc" 
+                           placeholder="••••••••••••" minlength="6" required>
+                </div>
+            </div>
+
+            <div class="d-grid mb-3">
+                <button type="submit" class="btn btn-soc-primary py-2 fw-bold" id="btn-submit-register">
+                    <i class="bi bi-person-check-fill"></i> Create Analyst Account
+                </button>
+            </div>
+        </form>
+
+        <div class="text-center small text-dim">
+            Already have an operational account? 
+            <a href="/login" class="text-cyan text-decoration-none fw-semibold">Sign In Here</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

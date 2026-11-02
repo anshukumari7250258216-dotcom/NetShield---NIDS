@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-header">
+            <!-- Professional SVG Shield & Network Node Logo -->
+            <svg class="auth-logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M50 8L15 22V50C15 72 30 90 50 96C70 90 85 72 85 50V22L50 8Z" 
+                      stroke="url(#auth-shield-grad)" stroke-width="5" fill="rgba(0, 242, 254, 0.08)"/>
+                <circle cx="50" cy="38" r="8" fill="#00f2fe"/>
+                <circle cx="34" cy="58" r="6" fill="#3b82f6"/>
+                <circle cx="66" cy="58" r="6" fill="#8b5cf6"/>
+                <circle cx="50" cy="74" r="5" fill="#00f2fe"/>
+                <line x1="50" y1="38" x2="34" y2="58" stroke="#00f2fe" stroke-width="2.5" stroke-dasharray="2 2"/>
+                <line x1="50" y1="38" x2="66" y2="58" stroke="#8b5cf6" stroke-width="2.5" stroke-dasharray="2 2"/>
+                <line x1="34" y1="58" x2="50" y2="74" stroke="#3b82f6" stroke-width="2.5"/>
+                <line x1="66" y1="58" x2="50" y2="74" stroke="#00f2fe" stroke-width="2.5"/>
+                <defs>
+                    <linearGradient id="auth-shield-grad" x1="15" y1="8" x2="85" y2="96" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#00f2fe"/>
+                        <stop offset="0.5" stop-color="#3b82f6"/>
+                        <stop offset="1" stop-color="#8b5cf6"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+            <h2 class="auth-title">SOC Access Authentication</h2>
+            <p class="auth-subtitle">Enter your security credentials to unlock the NetShield-NIDS console.</p>
+        </div>
+
+        <form method="POST" action="/login?next={{ next | urlencode }}" id="login-form">
+            <div class="mb-3">
+                <label class="form-label text-dim small fw-bold">USERNAME OR EMAIL</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-end-0" style="border-color: var(--border-color); color: var(--text-dim);">
+                        <i class="bi bi-person-fill"></i>
+                    </span>
+                    <input type="text" name="identifier" id="login-identifier" class="form-control-soc border-start-0 ps-0" 
+                           placeholder="admin or analyst@netshield.local" value="{{ identifier | default('') }}" required autofocus>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label text-dim small fw-bold">PASSWORD</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-end-0" style="border-color: var(--border-color); color: var(--text-dim);">
+                        <i class="bi bi-lock-fill"></i>
+                    </span>
+                    <input type="password" name="password" id="login-password" class="form-control-soc border-start-0 border-end-0 ps-0" 
+                           placeholder="••••••••••••" required>
+                    <button class="btn btn-soc-outline border-start-0" type="button" id="toggle-password-btn" style="border-color: var(--border-color);">
+                        <i class="bi bi-eye" id="toggle-password-icon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="d-grid mb-3">
+                <button type="submit" class="btn btn-soc-primary py-2 fw-bold" id="btn-submit-login">
+                    <i class="bi bi-shield-check"></i> Sign In to SOC Console
+                </button>
+            </div>
+        </form>
+
+        <!-- Initial Credentials Helper Card -->
+        <div class="p-3 rounded small mb-3" style="background: rgba(0, 242, 254, 0.06); border: 1px dashed rgba(0, 242, 254, 0.3);">
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <i class="bi bi-key-fill text-cyan"></i>
+                <strong class="text-cyan">Default SOC Admin Credentials:</strong>
+            </div>
+            <div class="font-mono small text-muted">
+                Username: <code class="text-info">admin</code> &nbsp;|&nbsp; Password: <code class="text-info">Admin@123</code>
+            </div>
+        </div>
+
+        <div class="text-center small text-dim">
+            Don't have an analyst account? 
+            <a href="/register" class="text-cyan text-decoration-none fw-semibold">Register Analyst Profile</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const toggleBtn = document.getElementById("toggle-password-btn");
+    const pwdInput = document.getElementById("login-password");
+    const pwdIcon = document.getElementById("toggle-password-icon");
+
+    if (toggleBtn && pwdInput) {
+        toggleBtn.addEventListener("click", () => {
+            const isPassword = pwdInput.type === "password";
+            pwdInput.type = isPassword ? "text" : "password";
+            pwdIcon.className = isPassword ? "bi bi-eye-slash" : "bi bi-eye";
+        });
+    }
+});
+</script>
+{% endblock %}
+

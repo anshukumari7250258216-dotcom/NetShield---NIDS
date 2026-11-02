@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Log Filter & Export Bar -->
+<div class="soc-card mb-4">
+    <div class="soc-card-body py-3">
+        <div class="row g-3 align-items-center">
+            <!-- Free Text Search -->
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-end-0" style="border-color: var(--border-color); color: var(--text-dim);">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" id="log-search" class="form-control-soc border-start-0 ps-0" placeholder="Search IP, port, or payload info...">
+                </div>
+            </div>
+
+            <!-- Protocol Filter -->
+            <div class="col-md-2 col-6">
+                <select class="form-select-soc" id="filter-protocol">
+                    <option value="ALL">All Protocols</option>
+                    <option value="TCP">TCP</option>
+                    <option value="UDP">UDP</option>
+                    <option value="ICMP">ICMP</option>
+                    <option value="OTHER">Other</option>
+                </select>
+            </div>
+
+            <!-- Suspicious / Normal Filter -->
+            <div class="col-md-2 col-6">
+                <select class="form-select-soc" id="filter-suspicious">
+                    <option value="">All Traffic</option>
+                    <option value="1">Suspicious / Flagged</option>
+                    <option value="0">Normal Traffic</option>
+                </select>
+            </div>
+
+            <!-- Export Buttons -->
+            <div class="col-md-4 text-md-end">
+                <a href="/api/export/events" class="btn btn-soc-outline btn-sm me-1" title="Export Raw Events CSV">
+                    <i class="bi bi-filetype-csv"></i> Events CSV
+                </a>
+                <a href="/api/export/report" class="btn btn-soc-primary btn-sm" title="Generate SOC Executive Audit Report">
+                    <i class="bi bi-file-earmark-text"></i> Audit Report
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Log Data Table Card -->
+<div class="soc-card">
+    <div class="soc-card-header">
+        <div class="soc-card-title">
+            <i class="bi bi-journal-text text-info"></i> Security Event Registry
+        </div>
+        <div class="text-dim small" id="logs-count-label">Loading events...</div>
+    </div>
+    <div class="table-responsive">
+        <table class="table-soc">
+            <thead>
+                <tr>
+                    <th>Log ID</th>
+                    <th>Timestamp</th>
+                    <th>Source IP:Port</th>
+                    <th>Destination IP:Port</th>
+                    <th>Proto</th>
+                    <th>Size</th>
+                    <th>Flags</th>
+                    <th>Classification</th>
+                    <th>Payload Summary</th>
+                </tr>
+            </thead>
+            <tbody id="logs-tbody">
+                <tr>
+                    <td colspan="9" class="text-center text-muted py-4">Querying database events...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <!-- Pagination Footer -->
+    <div class="soc-card-header d-flex justify-content-between align-items-center py-2">
+        <button class="btn btn-sm btn-soc-outline" id="btn-prev-page" disabled>
+            <i class="bi bi-chevron-left"></i> Previous
+        </button>
+        <span class="text-dim small" id="pagination-label">Page 1</span>
+        <button class="btn btn-sm btn-soc-outline" id="btn-next-page">
+            Next <i class="bi bi-chevron-right"></i>
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentOffset = 0;
+const pageLimit = 50;
+let totalLogs = 0;
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadLogs();
+
+    document.getElementById("filter-protocol").addEventListener("change", () => { currentOffset = 0; loadLogs(); });
+    document.getElementById("filter-suspicious").addEventListener("change", () => { currentOffset = 0; loadLogs(); });
+
+    let searchTimeout = null;
+    document.getElementById("log-search").addEventListener("input", () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => { currentOffset = 0; loadLogs(); }, 300);
+    });
+
+    document.getElementById("btn-prev-page").addEventListener("click", () => {
+        if (currentOffset >= pageLimit) {
+            currentOffset -= pageLimit;
+            loadLogs();
+        }
+    });
+
+    document.getElementById("btn-next-page").addEventListener("click", () => {
+        if (currentOffset + pageLimit < totalLogs) {
+            currentOffset += pageLimit;
+            loadLogs();
+        }
+    });
+});
+
+async function loadLogs() {
+    const proto = document.getElementById("filter-protocol").value;
+    const susp = document.getElementById("filter-suspicious").value;
+    const search = document.getElementById("log-search").value.trim();
+
+    const params = new URLSearchParams();
+    if (proto !== "ALL") params.append("protocol", proto);
+    if (susp !== "") params.append("suspicious", susp);
+    if (search) params.append("search", search);
+    params.append("limit", pageLimit.toString());
+    params.append("offset", currentOffset.toString());
+
+    try {
+        const res = await fetch(`/api/events?${params.toString()}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const data = json.data;
+
+        totalLogs = data.total;
+        const events = data.events;
+
+        document.getElementById("logs-count-label").innerText = `Showing ${events.length} of ${totalLogs.toLocaleString()} recorded packets`;
+
+        const currentPage = Math.floor(currentOffset / pageLimit) + 1;
+        const totalPages = Math.ceil(totalLogs / pageLimit) || 1;
+        document.getElementById("pagination-label").innerText = `Page ${currentPage} of ${totalPages}`;
+
+        document.getElementById("btn-prev-page").disabled = currentOffset <= 0;
+        document.getElementById("btn-next-page").disabled = currentOffset + pageLimit >= totalLogs;
+
+        const tbody = document.getElementById("logs-tbody");
+        if (!events.length) {
+            tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4">No events matching search filter.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = events.map(e => {
+            const protoClass = `badge-${e.protocol.toLowerCase()}`;
+            const statusBadge = e.is_suspicious 
+                ? `<span class="badge-soc badge-critical"><i class="bi bi-shield-slash"></i> Suspicious</span>` 
+                : `<span class="badge-soc badge-low"><i class="bi bi-check-lg"></i> Normal</span>`;
+
+            return `
+                <tr>
+                    <td class="font-mono text-dim">#${e.id}</td>
+                    <td class="font-mono small">${formatDate(e.timestamp)}</td>
+                    <td class="font-mono"><a href="/ip-analysis?ip=${encodeURIComponent(e.src_ip)}" class="text-info text-decoration-none">${escapeHtml(e.src_ip)}${e.src_port ? ':' + e.src_port : ''}</a></td>
+                    <td class="font-mono text-dim">${escapeHtml(e.dst_ip)}${e.dst_port ? ':' + e.dst_port : ''}</td>
+                    <td><span class="badge-proto ${protoClass}">${e.protocol}</span></td>
+                    <td class="font-mono small">${e.packet_size}B</td>
+                    <td class="font-mono small text-dim">${escapeHtml(e.flags || '-')}</td>
+                    <td>${statusBadge}</td>
+                    <td class="text-muted small">${escapeHtml(e.info || 'Standard traffic')}</td>
+                </tr>
+            `;
+        }).join("");
+
+    } catch (e) {
+        showToast("Error retrieving logs.", "error");
+    }
+}
+</script>
+{% endblock %}
+

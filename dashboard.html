@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Dashboard Quick Sensor Control Bar -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h4 class="fw-bold mb-1">SOC Telemetry & Real-Time Threat Intelligence</h4>
+        <p class="text-muted small mb-0">Continuous packet inspection, anomaly detection, and automated mitigation playbooks.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <div id="dash-mode-badge">
+            <span class="badge-soc badge-critical"><i class="bi bi-pause-circle"></i> STOPPED</span>
+        </div>
+        <button id="quick-start-sim-btn" class="btn btn-soc-primary btn-sm">
+            <i class="bi bi-play-fill"></i> Start Lab Simulation
+        </button>
+        <button id="quick-stop-btn" class="btn btn-soc-danger btn-sm" style="display: none;">
+            <i class="bi bi-stop-fill"></i> Stop Sensor
+        </button>
+        <a href="/monitoring" class="btn btn-soc-outline btn-sm">
+            <i class="bi bi-sliders"></i> Sniffer Console
+        </a>
+    </div>
+</div>
+
+<!-- 4 Primary KPI Telemetry Cards -->
+<div class="kpi-grid">
+    <div class="kpi-card info">
+        <div class="kpi-header">
+            <span class="kpi-title">Total Network Events</span>
+            <div class="kpi-icon"><i class="bi bi-activity"></i></div>
+        </div>
+        <div class="kpi-value" id="kpi-total-events">0</div>
+        <div class="kpi-footer">Ingested packet frames</div>
+    </div>
+
+    <div class="kpi-card warning">
+        <div class="kpi-header">
+            <span class="kpi-title">Suspicious Activities</span>
+            <div class="kpi-icon"><i class="bi bi-exclamation-triangle"></i></div>
+        </div>
+        <div class="kpi-value" id="kpi-suspicious-events">0</div>
+        <div class="kpi-footer">Policy anomalies & port probes</div>
+    </div>
+
+    <div class="kpi-card critical">
+        <div class="kpi-header">
+            <span class="kpi-title">Critical Alerts</span>
+            <div class="kpi-icon"><i class="bi bi-shield-slash"></i></div>
+        </div>
+        <div class="kpi-value" id="kpi-critical-alerts">0</div>
+        <div class="kpi-footer">High-confidence confirmed threats</div>
+    </div>
+
+    <div class="kpi-card purple">
+        <div class="kpi-header">
+            <span class="kpi-title">Unique Source IPs</span>
+            <div class="kpi-icon"><i class="bi bi-diagram-3"></i></div>
+        </div>
+        <div class="kpi-value" id="kpi-unique-ips">0</div>
+        <div class="kpi-footer">Observed communicating nodes</div>
+    </div>
+</div>
+
+<!-- SOC Analytic Charts (4 Visualizations) -->
+<div class="charts-grid">
+    <!-- Chart 1: Traffic Timeline -->
+    <div class="soc-card">
+        <div class="soc-card-header">
+            <div class="soc-card-title">
+                <i class="bi bi-graph-up text-info"></i> Network Traffic Velocity
+            </div>
+            <span class="text-dim small">Normal vs Flagged Packets</span>
+        </div>
+        <div class="soc-card-body">
+            <div class="chart-box">
+                <canvas id="trafficTimelineChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart 2: Threat Distribution -->
+    <div class="soc-card">
+        <div class="soc-card-header">
+            <div class="soc-card-title">
+                <i class="bi bi-pie-chart text-danger"></i> Threat Distribution
+            </div>
+            <span class="text-dim small">Intrusion Categories</span>
+        </div>
+        <div class="soc-card-body">
+            <div class="chart-box">
+                <canvas id="threatDistributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart 3: Severity Breakdown -->
+    <div class="soc-card">
+        <div class="soc-card-header">
+            <div class="soc-card-title">
+                <i class="bi bi-shield-check text-warning"></i> Severity Distribution
+            </div>
+            <span class="text-dim small">Risk Classification</span>
+        </div>
+        <div class="soc-card-body">
+            <div class="chart-box">
+                <canvas id="severityDistributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart 4: Top Targeted Ports -->
+    <div class="soc-card">
+        <div class="soc-card-header">
+            <div class="soc-card-title">
+                <i class="bi bi-hdd-network text-primary"></i> Top Targeted Destination Ports
+            </div>
+            <span class="text-dim small">Service Probing Frequency</span>
+        </div>
+        <div class="soc-card-body">
+            <div class="chart-box">
+                <canvas id="topPortsChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lower Section: Recent Alerts & Live Events Feed -->
+<div class="row g-4">
+    <!-- Recent Intrusion Alerts Table -->
+    <div class="col-lg-6">
+        <div class="soc-card h-100 mb-0">
+            <div class="soc-card-header">
+                <div class="soc-card-title">
+                    <i class="bi bi-shield-exclamation text-danger"></i> Recent Intrusion Attempts
+                </div>
+                <a href="/alerts" class="text-info small text-decoration-none">View All Alerts &rarr;</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table-soc">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Severity</th>
+                            <th>Threat Type</th>
+                            <th>Source IP</th>
+                            <th>Target</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recent-alerts-tbody">
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-3">Connecting to sensor...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Network Events Table -->
+    <div class="col-lg-6">
+        <div class="soc-card h-100 mb-0">
+            <div class="soc-card-header">
+                <div class="soc-card-title">
+                    <i class="bi bi-hdd-stack text-info"></i> Recent Network Packets
+                </div>
+                <a href="/logs" class="text-info small text-decoration-none">Inspect Logs &rarr;</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table-soc">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Source</th>
+                            <th>Destination</th>
+                            <th>Proto</th>
+                            <th>Status</th>
+                            <th>Summary</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recent-events-tbody">
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-3">Connecting to sensor...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
+

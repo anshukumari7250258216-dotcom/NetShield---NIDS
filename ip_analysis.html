@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Search & Input Card -->
+<div class="soc-card mb-4">
+    <div class="soc-card-body py-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 text-center">
+                <h4 class="fw-bold mb-2">Network IP Intelligence & CIDR Subnet Analyzer</h4>
+                <p class="text-muted small mb-4">
+                    Validate IPv4/IPv6 addresses, compute subnet topology, resolve reverse PTR records, and correlate with local SOC intrusion telemetry.
+                </p>
+                <form id="ip-lookup-form" class="d-flex gap-2 justify-content-center">
+                    <input type="text" class="form-control-soc font-mono w-75" id="ip-input" 
+                           placeholder="Enter IPv4, IPv6, or CIDR (e.g., 192.168.1.1 or 10.0.0.0/24)" 
+                           value="{{ default_ip }}" required>
+                    <button type="submit" class="btn btn-soc-primary">
+                        <i class="bi bi-search"></i> Analyze IP
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Results Container -->
+<div id="analysis-results" style="display: none;">
+    <!-- Top Row: Classification & Subnet Info -->
+    <div class="row g-4 mb-4">
+        <!-- Classification Card -->
+        <div class="col-lg-6">
+            <div class="soc-card h-100">
+                <div class="soc-card-header">
+                    <div class="soc-card-title">
+                        <i class="bi bi-shield-check text-cyan"></i> Address Classification & Identity
+                    </div>
+                    <button class="btn btn-sm btn-soc-danger py-0 px-2" id="btn-quick-block-ip">
+                        <i class="bi bi-slash-circle"></i> Blocklist IP
+                    </button>
+                </div>
+                <div class="soc-card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <span class="text-dim small">TARGET IP</span>
+                            <div class="font-mono fw-bold fs-5 text-cyan" id="res-ip">127.0.0.1</div>
+                        </div>
+                        <div class="col-6">
+                            <span class="text-dim small">IP VERSION</span>
+                            <div class="fw-bold" id="res-version">IPv4</div>
+                        </div>
+                        <div class="col-12">
+                            <span class="text-dim small">CLASSIFICATION SCOPE</span>
+                            <div class="fw-semibold text-warning" id="res-scope">RFC 1918 Private</div>
+                        </div>
+                        <div class="col-12">
+                            <span class="text-dim small">REVERSE DNS (PTR)</span>
+                            <div class="font-mono small text-muted" id="res-rdns">Searching...</div>
+                        </div>
+                        <div class="col-12">
+                            <span class="text-dim small">BINARY NOTATION</span>
+                            <div class="font-mono small text-dim" id="res-binary">00000000.00000000.00000000.00000000</div>
+                        </div>
+                        <div class="col-12">
+                            <span class="text-dim small">HEXADECIMAL NOTATION</span>
+                            <div class="font-mono small text-dim" id="res-hex">0x00000000</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subnet / CIDR Calculator Card -->
+        <div class="col-lg-6">
+            <div class="soc-card h-100">
+                <div class="soc-card-header">
+                    <div class="soc-card-title">
+                        <i class="bi bi-diagram-2 text-info"></i> Subnet & CIDR Topology
+                    </div>
+                    <span class="badge-soc badge-medium" id="res-cidr-badge">/24</span>
+                </div>
+                <div class="soc-card-body">
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <span class="text-dim small">NETWORK ADDRESS</span>
+                            <div class="font-mono fw-semibold" id="res-net-addr">192.168.1.0</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <span class="text-dim small">BROADCAST ADDRESS</span>
+                            <div class="font-mono fw-semibold" id="res-bcast-addr">192.168.1.255</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <span class="text-dim small">SUBNET MASK</span>
+                            <div class="font-mono small" id="res-netmask">255.255.255.0</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <span class="text-dim small">WILDCARD / HOSTMASK</span>
+                            <div class="font-mono small" id="res-hostmask">0.0.0.255</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <span class="text-dim small">TOTAL ADDRESSES</span>
+                            <div class="font-mono fw-bold text-info" id="res-total-addrs">256</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <span class="text-dim small">USABLE HOST CAPACITY</span>
+                            <div class="font-mono fw-bold text-success" id="res-usable-hosts">254</div>
+                        </div>
+                        <div class="col-12">
+                            <span class="text-dim small">USABLE HOST RANGE</span>
+                            <div class="font-mono small text-muted" id="res-host-range">192.168.1.1 &rarr; 192.168.1.254</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SOC Database Telemetry Correlation Card -->
+    <div class="soc-card mb-4">
+        <div class="soc-card-header">
+            <div class="soc-card-title">
+                <i class="bi bi-clock-history text-danger"></i> Local SOC Sensor Activity & Incident History
+            </div>
+        </div>
+        <div class="soc-card-body">
+            <!-- Metric Counters -->
+            <div class="row text-center g-3 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="p-3 rounded" style="background: var(--bg-input); border: 1px solid var(--border-color);">
+                        <div class="text-dim small">TOTAL PACKETS OBSERVED</div>
+                        <div class="fs-4 fw-bold font-mono text-cyan" id="soc-total-pkts">0</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 rounded" style="background: var(--bg-input); border: 1px solid var(--border-color);">
+                        <div class="text-dim small">SUSPICIOUS PACKETS</div>
+                        <div class="fs-4 fw-bold font-mono text-danger" id="soc-susp-pkts">0</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 rounded" style="background: var(--bg-input); border: 1px solid var(--border-color);">
+                        <div class="text-dim small">ALERTS TRIGGERED</div>
+                        <div class="fs-4 fw-bold font-mono text-warning" id="soc-alerts-count">0</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 rounded" style="background: var(--bg-input); border: 1px solid var(--border-color);">
+                        <div class="text-dim small">OBSERVATION WINDOW</div>
+                        <div class="small font-mono text-muted" id="soc-time-window">First: N/A<br>Last: N/A</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Targeted Ports & Protocols -->
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <h6 class="fw-bold mb-2"><i class="bi bi-hdd-network"></i> Distinct Ports Contacted</h6>
+                    <div class="table-responsive">
+                        <table class="table-soc table-sm">
+                            <thead><tr><th>Port</th><th>Observation Count</th></tr></thead>
+                            <tbody id="soc-ports-tbody">
+                                <tr><td colspan="2" class="text-muted">No port activity recorded.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="fw-bold mb-2"><i class="bi bi-shield-slash"></i> Incidents Involving This IP</h6>
+                    <div class="table-responsive">
+                        <table class="table-soc table-sm">
+                            <thead><tr><th>Time</th><th>Threat Type</th><th>Severity</th></tr></thead>
+                            <tbody id="soc-alerts-tbody">
+                                <tr><td colspan="3" class="text-muted">No security alerts associated.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SOC Methodology & Disclaimer Alert -->
+    <div class="alert alert-dark border-0 p-3 small text-dim" style="background: var(--bg-card-solid); border: 1px solid var(--border-color) !important;">
+        <i class="bi bi-info-circle text-info me-1"></i>
+        <strong>Privacy & SOC Operational Protocol:</strong> NetShield correlates telemetry collected directly by your internal sensors and applies standard RFC/IETF classification rules. No IP addresses or traffic headers are transmitted to third-party tracking services.
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const form = document.getElementById("ip-lookup-form");
+    form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        performAnalysis();
+    });
+
+    const defaultIp = document.getElementById("ip-input").value.trim();
+    if (defaultIp) {
+        performAnalysis();
+    }
+
+    // Quick block button
+    document.getElementById("btn-quick-block-ip").addEventListener("click", async () => {
+        const ip = document.getElementById("res-ip").innerText;
+        try {
+            const res = await fetch("/api/blocklist", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ip: ip, reason: "Manual block from IP Analysis console" })
+            });
+            const data = await res.json();
+            showToast(data.message, data.status === "error" ? "error" : "success");
+        } catch (e) {
+            showToast("Failed to block IP.", "error");
+        }
+    });
+});
+
+async function performAnalysis() {
+    const rawInput = document.getElementById("ip-input").value.trim();
+    if (!rawInput) return;
+
+    try {
+        const res = await fetch(`/api/ip-analysis?ip=${encodeURIComponent(rawInput)}`);
+        const json = await res.json();
+
+        if (json.status !== "success") {
+            showToast(json.message, "error");
+            return;
+        }
+
+        const container = document.getElementById("analysis-results");
+        container.style.display = "block";
+
+        const c = json.classification;
+        const s = json.subnet;
+        const h = json.soc_telemetry;
+
+        document.getElementById("res-ip").innerText = json.ip;
+        document.getElementById("res-version").innerText = c.is_ipv4 ? "IPv4 (32-bit)" : "IPv6 (128-bit)";
+        document.getElementById("res-scope").innerText = c.label;
+        document.getElementById("res-rdns").innerText = c.hostname || "No PTR record";
+        document.getElementById("res-binary").innerText = c.binary;
+        document.getElementById("res-hex").innerText = c.hex;
+
+        if (s && !s.error) {
+            document.getElementById("res-cidr-badge").innerText = `/${s.prefixlen}`;
+            document.getElementById("res-net-addr").innerText = s.network_address;
+            document.getElementById("res-bcast-addr").innerText = s.broadcast_address;
+            document.getElementById("res-netmask").innerText = s.netmask;
+            document.getElementById("res-hostmask").innerText = s.hostmask;
+            document.getElementById("res-total-addrs").innerText = Number(s.total_addresses).toLocaleString();
+            document.getElementById("res-usable-hosts").innerText = Number(s.usable_hosts).toLocaleString();
+            document.getElementById("res-host-range").innerText = `${s.first_usable_host} \u2192 ${s.last_usable_host}`;
+        }
+
+        if (h) {
+            const stats = h.stats || {};
+            document.getElementById("soc-total-pkts").innerText = Number(stats.total_packets || 0).toLocaleString();
+            document.getElementById("soc-susp-pkts").innerText = Number(stats.suspicious_count || 0).toLocaleString();
+            document.getElementById("soc-alerts-count").innerText = (h.alerts || []).length;
+            
+            const first = stats.first_seen ? formatDate(stats.first_seen) : "N/A";
+            const last = stats.last_seen ? formatDate(stats.last_seen) : "N/A";
+            document.getElementById("soc-time-window").innerHTML = `First: ${first}<br>Last: ${last}`;
+
+            const portsTbody = document.getElementById("soc-ports-tbody");
+            if (h.targeted_ports && h.targeted_ports.length) {
+                portsTbody.innerHTML = h.targeted_ports.map(p => `
+                    <tr><td class="font-mono">Port ${p.dst_port}</td><td class="font-mono">${p.count}</td></tr>
+                `).join("");
+            } else {
+                portsTbody.innerHTML = `<tr><td colspan="2" class="text-muted">No contacted ports recorded.</td></tr>`;
+            }
+
+            const alertsTbody = document.getElementById("soc-alerts-tbody");
+            if (h.alerts && h.alerts.length) {
+                alertsTbody.innerHTML = h.alerts.map(a => `
+                    <tr>
+                        <td class="font-mono small">${formatDate(a.timestamp)}</td>
+                        <td class="fw-semibold">${escapeHtml(a.detection_type)}</td>
+                        <td><span class="badge-soc badge-${a.severity.toLowerCase()}">${a.severity}</span></td>
+                    </tr>
+                `).join("");
+            } else {
+                alertsTbody.innerHTML = `<tr><td colspan="3" class="text-muted">No security alerts associated.</td></tr>`;
+            }
+        }
+
+    } catch (e) {
+        showToast("Error inspecting IP.", "error");
+    }
+}
+</script>
+{% endblock %}
+

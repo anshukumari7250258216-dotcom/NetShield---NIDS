@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Left Column: Sniffer Controls & Status -->
+    <div class="col-lg-4">
+        <!-- Capture Controls Card -->
+        <div class="soc-card">
+            <div class="soc-card-header">
+                <div class="soc-card-title">
+                    <i class="bi bi-broadcast text-info"></i> Sensor Configuration
+                </div>
+            </div>
+            <div class="soc-card-body">
+                <form id="monitor-control-form">
+                    <!-- Mode Selection -->
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">CAPTURE MODE</label>
+                        <select class="form-select-soc" id="capture-mode-select">
+                            <option value="simulation" selected>Simulated Traffic Stream (SOC Lab Mode)</option>
+                            <option value="live">Live Network Interface (Scapy Sniffer)</option>
+                        </select>
+                        <div class="text-dim small mt-1" id="mode-hint">
+                            Generates synthetic baseline web & DNS traffic with periodic test attack vectors.
+                        </div>
+                    </div>
+
+                    <!-- Interface Selection -->
+                    <div class="mb-3" id="interface-group" style="display: none;">
+                        <label class="form-label text-muted small fw-bold">NETWORK INTERFACE</label>
+                        <select class="form-select-soc" id="interface-select">
+                            <option value="default">Default System Interface</option>
+                            {% for iface in interfaces %}
+                            <option value="{{ iface.id }}">{{ iface.name }} ({{ iface.ip }})</option>
+                            {% endfor %}
+                        </select>
+                        <div class="text-dim small mt-1">Requires Administrator/root privileges & Npcap driver.</div>
+                    </div>
+
+                    <!-- Optional BPF Filter -->
+                    <div class="mb-4" id="bpf-group" style="display: none;">
+                        <label class="form-label text-muted small fw-bold">BPF PACKET FILTER (OPTIONAL)</label>
+                        <input type="text" class="form-control-soc font-mono" id="bpf-filter" placeholder="e.g. tcp or port 80 or icmp">
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2">
+                        <button type="button" id="btn-start-monitor" class="btn btn-soc-primary">
+                            <i class="bi bi-play-circle-fill"></i> Start Monitoring
+                        </button>
+                        <button type="button" id="btn-stop-monitor" class="btn btn-soc-danger" style="display: none;">
+                            <i class="bi bi-stop-circle-fill"></i> Stop Monitoring
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Offline PCAP Analysis Card -->
+        <div class="soc-card">
+            <div class="soc-card-header">
+                <div class="soc-card-title">
+                    <i class="bi bi-file-earmark-code text-warning"></i> Offline PCAP Analysis
+                </div>
+            </div>
+            <div class="soc-card-body">
+                <p class="text-muted small">
+                    Upload a recorded network capture file (<code>.pcap</code>, <code>.pcapng</code>, <code>.cap</code>) to run the detection engine offline.
+                </p>
+                <form id="pcap-upload-form" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <input class="form-control-soc" type="file" id="pcap-file-input" accept=".pcap,.pcapng,.cap" required>
+                    </div>
+                    <button type="submit" id="btn-upload-pcap" class="btn btn-soc-outline w-100">
+                        <i class="bi bi-upload"></i> Analyze PCAP File
+                    </button>
+                </form>
+                <div id="pcap-result" class="mt-3" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- Educational / Permissions Advisory Card -->
+        <div class="soc-card">
+            <div class="soc-card-header">
+                <div class="soc-card-title">
+                    <i class="bi bi-shield-lock text-info"></i> Security & Permissions
+                </div>
+            </div>
+            <div class="soc-card-body small text-muted">
+                <p class="mb-2">
+                    <strong>Live Sniffing Requirement:</strong> Raw socket access on Windows requires the <em>Npcap</em> packet capture library and elevated terminal privileges.
+                </p>
+                <p class="mb-0">
+                    <strong>SOC Lab Mode:</strong> If you are testing in a standard user environment without Npcap, <em>Simulation Mode</em> safely generates realistic packet flows to demonstrate all intrusion rules.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Live Stream Telemetry & Rolling Packet Buffer -->
+    <div class="col-lg-8">
+        <!-- Live Telemetry KPI Bar -->
+        <div class="soc-card mb-3">
+            <div class="soc-card-body py-3">
+                <div class="row text-center g-2">
+                    <div class="col-4 col-md-2">
+                        <div class="text-dim small">STATUS</div>
+                        <div class="fw-bold" id="live-telemetry-status">STOPPED</div>
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <div class="text-dim small">MODE</div>
+                        <div class="fw-bold font-mono text-info" id="live-telemetry-mode">NONE</div>
+                    </div>
+                    <div class="col-4 col-md-3">
+                        <div class="text-dim small">PACKETS CAPTURED</div>
+                        <div class="fw-bold font-mono text-cyan" id="live-telemetry-packets">0</div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="text-dim small">ALERTS FIRED</div>
+                        <div class="fw-bold font-mono text-danger" id="live-telemetry-alerts">0</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-dim small">ACTIVE INTERFACE</div>
+                        <div class="fw-bold small text-truncate" id="live-telemetry-iface" title="N/A">N/A</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rolling Live Packet Feed Table -->
+        <div class="soc-card">
+            <div class="soc-card-header flex-wrap gap-2">
+                <div class="soc-card-title">
+                    <i class="bi bi-reception-4 text-cyan"></i> Live Packet Stream
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm btn-soc-outline" id="btn-pause-stream" title="Pause Feed">
+                        <i class="bi bi-pause-fill"></i> Pause
+                    </button>
+                    <button class="btn btn-sm btn-soc-outline" id="btn-clear-stream" title="Clear Buffer">
+                        <i class="bi bi-trash"></i> Clear
+                    </button>
+                </div>
+            </div>
+            <div class="table-responsive" style="max-height: 580px; overflow-y: auto;" id="packet-stream-container">
+                <table class="table-soc">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Source</th>
+                            <th>Destination</th>
+                            <th>Proto</th>
+                            <th>Size</th>
+                            <th>Flags</th>
+                            <th>Analysis</th>
+                        </tr>
+                    </thead>
+                    <tbody id="live-packets-tbody">
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                Monitoring is currently idle. Click <strong>Start Monitoring</strong> to begin packet inspection.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let isPaused = false;
+let monitorInterval = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+    initMonitoringControls();
+    pollLiveBuffer();
+    monitorInterval = setInterval(pollLiveBuffer, 1500);
+});
+
+function initMonitoringControls() {
+    const modeSelect = document.getElementById("capture-mode-select");
+    const ifaceGroup = document.getElementById("interface-group");
+    const bpfGroup = document.getElementById("bpf-group");
+    const modeHint = document.getElementById("mode-hint");
+
+    modeSelect.addEventListener("change", () => {
+        if (modeSelect.value === "live") {
+            ifaceGroup.style.display = "block";
+            bpfGroup.style.display = "block";
+            modeHint.innerText = "Captures live packet traffic from the host network adapter using Scapy.";
+        } else {
+            ifaceGroup.style.display = "none";
+            bpfGroup.style.display = "none";
+            modeHint.innerText = "Generates synthetic baseline web & DNS traffic with periodic test attack vectors.";
+        }
+    });
+
+    document.getElementById("btn-start-monitor").addEventListener("click", async () => {
+        const mode = modeSelect.value;
+        const iface = document.getElementById("interface-select").value;
+        const bpf = document.getElementById("bpf-filter").value;
+
+        try {
+            const res = await fetch("/api/monitoring/start", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ mode: mode, interface: iface, filter: bpf })
+            });
+            const data = await res.json();
+            if (data.status === "warning") {
+                showToast(data.message, "warning");
+            } else if (data.status === "error") {
+                showToast(data.message, "error");
+            } else {
+                showToast(data.message, "success");
+            }
+            pollLiveBuffer();
+        } catch (e) {
+            showToast("Failed to initiate capture.", "error");
+        }
+    });
+
+    document.getElementById("btn-stop-monitor").addEventListener("click", async () => {
+        try {
+            const res = await fetch("/api/monitoring/stop", { method: "POST" });
+            const data = await res.json();
+            showToast(data.message, "info");
+            pollLiveBuffer();
+        } catch (e) {
+            showToast("Failed to stop monitor.", "error");
+        }
+    });
+
+    document.getElementById("btn-pause-stream").addEventListener("click", function() {
+        isPaused = !isPaused;
+        this.innerHTML = isPaused ? `<i class="bi bi-play-fill"></i> Resume` : `<i class="bi bi-pause-fill"></i> Pause`;
+    });
+
+    document.getElementById("btn-clear-stream").addEventListener("click", async () => {
+        await fetch("/api/monitoring/buffer/clear", { method: "POST" });
+        document.getElementById("live-packets-tbody").innerHTML = `
+            <tr><td colspan="7" class="text-center text-muted py-3">Buffer cleared. Waiting for packets...</td></tr>
+        `;
+    });
+
+    // PCAP Upload Handler
+    const pcapForm = document.getElementById("pcap-upload-form");
+    pcapForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fileInput = document.getElementById("pcap-file-input");
+        if (!fileInput.files.length) return;
+
+        const formData = new FormData();
+        formData.append("pcap_file", fileInput.files[0]);
+
+        const resultBox = document.getElementById("pcap-result");
+        resultBox.style.display = "block";
+        resultBox.innerHTML = `<div class="text-info"><i class="bi bi-hourglass-split"></i> Ingesting and evaluating PCAP packets...</div>`;
+
+        try {
+            const res = await fetch("/api/monitoring/upload-pcap", {
+                method: "POST",
+                body: formData
+            });
+            const json = await res.json();
+            if (json.status === "success") {
+                resultBox.innerHTML = `
+                    <div class="alert alert-success py-2 px-3 small">
+                        <strong><i class="bi bi-check-circle"></i> Analysis Complete:</strong><br>
+                        ${escapeHtml(json.data.message)}
+                    </div>
+                `;
+                showToast("PCAP ingestion finished.", "success");
+            } else {
+                resultBox.innerHTML = `
+                    <div class="alert alert-danger py-2 px-3 small">
+                        <i class="bi bi-exclamation-octagon"></i> ${escapeHtml(json.message)}
+                    </div>
+                `;
+                showToast("PCAP parsing error.", "error");
+            }
+        } catch (err) {
+            resultBox.innerHTML = `<div class="text-danger small">Upload failed.</div>`;
+        }
+    });
+}
+
+async function pollLiveBuffer() {
+    if (isPaused) return;
+
+    try {
+        const res = await fetch("/api/monitoring/buffer?limit=40");
+        if (!res.ok) return;
+        const json = await res.json();
+        const status = json.monitor_status;
+        const packets = json.packets;
+
+        // Update Telemetry Header
+        const statusEl = document.getElementById("live-telemetry-status");
+        const modeEl = document.getElementById("live-telemetry-mode");
+        const pktsEl = document.getElementById("live-telemetry-packets");
+        const alertsEl = document.getElementById("live-telemetry-alerts");
+        const ifaceEl = document.getElementById("live-telemetry-iface");
+
+        const btnStart = document.getElementById("btn-start-monitor");
+        const btnStop = document.getElementById("btn-stop-monitor");
+
+        if (status.is_running) {
+            statusEl.innerText = "ACTIVE";
+            statusEl.className = "fw-bold text-success";
+            modeEl.innerText = status.mode.toUpperCase();
+            pktsEl.innerText = Number(status.packets_captured).toLocaleString();
+            alertsEl.innerText = Number(status.alerts_triggered).toLocaleString();
+            ifaceEl.innerText = status.interface;
+            ifaceEl.title = status.interface;
+
+            btnStart.style.display = "none";
+            btnStop.style.display = "block";
+        } else {
+            statusEl.innerText = "STOPPED";
+            statusEl.className = "fw-bold text-danger";
+            modeEl.innerText = "NONE";
+            pktsEl.innerText = Number(status.packets_captured).toLocaleString();
+            alertsEl.innerText = Number(status.alerts_triggered).toLocaleString();
+            ifaceEl.innerText = "N/A";
+
+            btnStart.style.display = "block";
+            btnStop.style.display = "none";
+        }
+
+        // Render packets
+        const tbody = document.getElementById("live-packets-tbody");
+        if (!packets || packets.length === 0) return;
+
+        tbody.innerHTML = packets.slice().reverse().map(p => {
+            const protoClass = `badge-${p.protocol.toLowerCase()}`;
+            const analysisBadge = p.is_suspicious 
+                ? `<span class="badge-soc badge-critical"><i class="bi bi-shield-x"></i> Flagged</span>` 
+                : `<span class="badge-soc badge-low"><i class="bi bi-check-lg"></i> Clean</span>`;
+
+            return `
+                <tr>
+                    <td class="font-mono text-dim small">${formatDate(p.timestamp)}</td>
+                    <td class="font-mono"><a href="/ip-analysis?ip=${encodeURIComponent(p.src_ip)}" class="text-info text-decoration-none">${escapeHtml(p.src_ip)}${p.src_port ? ':' + p.src_port : ''}</a></td>
+                    <td class="font-mono text-dim">${escapeHtml(p.dst_ip)}${p.dst_port ? ':' + p.dst_port : ''}</td>
+                    <td><span class="badge-proto ${protoClass}">${p.protocol}</span></td>
+                    <td class="font-mono small">${p.packet_size}B</td>
+                    <td class="font-mono small text-dim">${escapeHtml(p.flags || '-')}</td>
+                    <td>${analysisBadge}</td>
+                </tr>
+            `;
+        }).join("");
+
+    } catch (e) {
+        // Tolerated polling error
+    }
+}
+</script>
+{% endblock %}
+

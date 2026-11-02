@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title | default('SOC Console') }} | NetShield-NIDS</title>
+    <!-- Bootstrap 5 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Custom NetShield SOC Design System -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        {% if current_user %}
+        <!-- Sidebar Navigation (Only for Authenticated Users) -->
+        <aside class="sidebar" id="app-sidebar">
+            <div class="brand-section">
+                <!-- Professional SVG Shield & Network Node Logo -->
+                <svg class="brand-logo-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M50 8L15 22V50C15 72 30 90 50 96C70 90 85 72 85 50V22L50 8Z" 
+                          stroke="url(#shield-grad)" stroke-width="5" fill="rgba(0, 242, 254, 0.08)"/>
+                    <circle cx="50" cy="38" r="8" fill="#00f2fe"/>
+                    <circle cx="34" cy="58" r="6" fill="#3b82f6"/>
+                    <circle cx="66" cy="58" r="6" fill="#8b5cf6"/>
+                    <circle cx="50" cy="74" r="5" fill="#00f2fe"/>
+                    <line x1="50" y1="38" x2="34" y2="58" stroke="#00f2fe" stroke-width="2.5" stroke-dasharray="2 2"/>
+                    <line x1="50" y1="38" x2="66" y2="58" stroke="#8b5cf6" stroke-width="2.5" stroke-dasharray="2 2"/>
+                    <line x1="34" y1="58" x2="50" y2="74" stroke="#3b82f6" stroke-width="2.5"/>
+                    <line x1="66" y1="58" x2="50" y2="74" stroke="#00f2fe" stroke-width="2.5"/>
+                    <defs>
+                        <linearGradient id="shield-grad" x1="15" y1="8" x2="85" y2="96" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#00f2fe"/>
+                            <stop offset="0.5" stop-color="#3b82f6"/>
+                            <stop offset="1" stop-color="#8b5cf6"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <div>
+                    <div class="brand-title">NetShield</div>
+                    <span class="brand-badge">NIDS v2.0 SOC</span>
+                </div>
+            </div>
+
+            <!-- Navigation Menu -->
+            <ul class="nav-menu">
+                <li>
+                    <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>SOC Dashboard</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/monitoring" class="nav-link {% if request.path == '/monitoring' %}active{% endif %}">
+                        <i class="bi bi-broadcast-pin"></i>
+                        <span>Live Monitor</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/alerts" class="nav-link {% if request.path == '/alerts' %}active{% endif %}">
+                        <i class="bi bi-shield-exclamation"></i>
+                        <span>Alerts Center</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/ip-analysis" class="nav-link {% if request.path == '/ip-analysis' %}active{% endif %}">
+                        <i class="bi bi-search"></i>
+                        <span>IP Threat Analysis</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/logs" class="nav-link {% if request.path == '/logs' %}active{% endif %}">
+                        <i class="bi bi-journal-code"></i>
+                        <span>Security Logs</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/settings" class="nav-link {% if request.path == '/settings' %}active{% endif %}">
+                        <i class="bi bi-sliders"></i>
+                        <span>Settings & Rules</span>
+                    </a>
+                </li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <span class="text-dim">Engine:</span>
+                    <span class="text-success fw-bold">Active</span>
+                </div>
+                <div class="text-dim small">Python 3 + Flask + Scapy</div>
+            </div>
+        </aside>
+        {% endif %}
+
+        <!-- Main Workspace -->
+        <div class="main-wrapper {% if not current_user %}full-width{% endif %}">
+            <!-- Top SOC Navbar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    {% if current_user %}
+                    <button class="mobile-toggle" id="mobile-menu-toggle" aria-label="Toggle Navigation">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    {% endif %}
+                    <h1 class="page-heading mb-0">{{ page_title }}</h1>
+                </div>
+
+                <div class="topbar-right">
+                    {% if current_user %}
+                    <!-- Global Monitoring Telemetry Pill -->
+                    <div class="status-pill" id="global-status-pill" title="Network Sensor Status">
+                        <div class="status-indicator" id="global-status-indicator"></div>
+                        <span id="global-status-text">Checking Sensor...</span>
+                    </div>
+
+                    <!-- User Profile Badge -->
+                    <div class="user-profile-badge d-none d-sm-flex" title="Signed in as {{ current_user.email }}">
+                        <div class="user-avatar-circle">{{ current_user.username[0]|upper }}</div>
+                        <div class="d-flex flex-column">
+                            <span class="fw-semibold text-truncate" style="max-width: 130px;">{{ current_user.full_name }}</span>
+                            <span class="user-role-tag">{{ current_user.role }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Logout Button -->
+                    <a href="/logout" class="btn btn-soc-outline btn-sm py-1 px-2" title="Sign out of SOC console">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span class="d-none d-md-inline">Logout</span>
+                    </a>
+                    {% else %}
+                    <!-- Unauthenticated Topbar Options -->
+                    <a href="/login" class="btn btn-soc-outline btn-sm py-1 px-3">
+                        <i class="bi bi-box-arrow-in-right"></i> Login
+                    </a>
+                    <a href="/register" class="btn btn-soc-primary btn-sm py-1 px-3">
+                        <i class="bi bi-person-plus"></i> Register
+                    </a>
+                    {% endif %}
+
+                    <!-- Dark / Light Theme Toggle -->
+                    <button class="btn-theme-toggle" id="theme-toggle-btn" title="Toggle Dark/Light Mode">
+                        <i class="bi bi-moon-stars-fill" id="theme-icon"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Page Body -->
+            <main class="page-content">
+                <!-- Flashed Notifications -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show small py-2 px-3 mb-3 border-0" 
+                                 style="background: var(--bg-card-solid); border-left: 4px solid var(--accent-{% if category == 'success' %}green{% elif category == 'danger' %}red{% elif category == 'warning' %}yellow{% else %}blue{% endif %}) !important; color: var(--text-main);" role="alert">
+                                <i class="bi bi-{% if category == 'success' %}check-circle-fill text-success{% elif category == 'danger' %}exclamation-octagon-fill text-danger{% else %}info-circle-fill text-info{% endif %} me-2"></i>
+                                {{ message }}
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                {% if error_code %}
+                <div class="soc-card text-center py-5">
+                    <div class="py-4">
+                        <i class="bi bi-exclamation-octagon text-danger display-1"></i>
+                        <h2 class="mt-3">{{ error_code }} - Security Error</h2>
+                        <p class="text-muted">{{ error_message }}</p>
+                        <a href="/" class="btn btn-soc-primary mt-2">
+                            <i class="bi bi-house"></i> Return to Dashboard
+                        </a>
+                    </div>
+                </div>
+                {% else %}
+                    {% block content %}{% endblock %}
+                {% endif %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Chart.js 4+ CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <!-- NetShield Global App JS -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+

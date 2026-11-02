@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Alert Filter Bar & Controls -->
+<div class="soc-card mb-4">
+    <div class="soc-card-body py-3">
+        <div class="row g-3 align-items-center">
+            <!-- Search Bar -->
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-end-0" style="border-color: var(--border-color); color: var(--text-dim);">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" id="alert-search" class="form-control-soc border-start-0 ps-0" placeholder="Search IP, threat type, description...">
+                </div>
+            </div>
+
+            <!-- Severity Filter -->
+            <div class="col-md-2 col-6">
+                <select class="form-select-soc" id="filter-severity">
+                    <option value="ALL">All Severities</option>
+                    <option value="CRITICAL">Critical</option>
+                    <option value="HIGH">High</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="LOW">Low</option>
+                </select>
+            </div>
+
+            <!-- Status Filter -->
+            <div class="col-md-2 col-6">
+                <select class="form-select-soc" id="filter-status">
+                    <option value="ALL">All Statuses</option>
+                    <option value="New">New</option>
+                    <option value="Investigating">Investigating</option>
+                    <option value="Resolved">Resolved</option>
+                </select>
+            </div>
+
+            <!-- Export & Action Buttons -->
+            <div class="col-md-4 text-md-end">
+                <button class="btn btn-soc-outline btn-sm me-2" id="btn-batch-resolve">
+                    <i class="bi bi-check2-all"></i> Resolve Selected
+                </button>
+                <a href="/api/export/alerts" class="btn btn-soc-outline btn-sm">
+                    <i class="bi bi-download"></i> Export CSV
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alerts Table Card -->
+<div class="soc-card">
+    <div class="soc-card-header">
+        <div class="soc-card-title">
+            <i class="bi bi-shield-exclamation text-danger"></i> Intrusion Incidents
+        </div>
+        <div class="text-dim small" id="alerts-count-label">Loading alerts...</div>
+    </div>
+    <div class="table-responsive">
+        <table class="table-soc">
+            <thead>
+                <tr>
+                    <th width="40"><input type="checkbox" id="check-all-alerts"></th>
+                    <th>Alert ID</th>
+                    <th>Timestamp</th>
+                    <th>Severity</th>
+                    <th>Threat Detection Type</th>
+                    <th>Source Origin</th>
+                    <th>Target</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="alerts-tbody">
+                <tr>
+                    <td colspan="9" class="text-center text-muted py-4">Fetching alert telemetry...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Alert Detail & Triage Modal -->
+<div class="modal-soc" id="alert-detail-modal">
+    <div class="modal-dialog-soc">
+        <div class="modal-header-soc">
+            <div class="fw-bold" id="modal-alert-title">Incident Details</div>
+            <button type="button" class="btn-close btn-close-white" id="btn-close-modal"></button>
+        </div>
+        <div class="modal-body-soc">
+            <!-- Metadata Grid -->
+            <div class="row g-3 mb-3">
+                <div class="col-sm-6">
+                    <label class="text-dim small">INCIDENT ID</label>
+                    <div class="fw-bold font-mono" id="modal-alert-id">#0</div>
+                </div>
+                <div class="col-sm-6">
+                    <label class="text-dim small">TIMESTAMP (UTC)</label>
+                    <div class="font-mono small" id="modal-alert-time">N/A</div>
+                </div>
+                <div class="col-sm-6">
+                    <label class="text-dim small">SEVERITY LEVEL</label>
+                    <div id="modal-alert-severity"><span class="badge-soc badge-critical">CRITICAL</span></div>
+                </div>
+                <div class="col-sm-6">
+                    <label class="text-dim small">ATTACK CONFIDENCE</label>
+                    <div id="modal-alert-confidence" class="small fw-semibold text-danger">Confirmed Signature</div>
+                </div>
+                <div class="col-sm-6">
+                    <label class="text-dim small">SOURCE IP</label>
+                    <div class="font-mono fw-bold" id="modal-alert-src">127.0.0.1</div>
+                </div>
+                <div class="col-sm-6">
+                    <label class="text-dim small">TARGET IP</label>
+                    <div class="font-mono fw-bold" id="modal-alert-dst">127.0.0.1</div>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div class="mb-3">
+                <label class="text-dim small">INCIDENT TELEMETRY & DESCRIPTION</label>
+                <div class="p-2 rounded font-mono small" style="background: var(--bg-input); border: 1px solid var(--border-color);" id="modal-alert-desc">
+                    Description goes here...
+                </div>
+            </div>
+
+            <!-- Recommended Mitigation -->
+            <div class="mb-3">
+                <label class="text-dim small text-warning fw-bold"><i class="bi bi-shield-check"></i> RECOMMENDED MITIGATION PLAYBOOK</label>
+                <div class="p-2 rounded small" style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25);" id="modal-alert-rec">
+                    Mitigation recommendation...
+                </div>
+            </div>
+
+            <!-- Triage Status & Analyst Notes -->
+            <div class="row g-3 mb-2">
+                <div class="col-sm-5">
+                    <label class="text-dim small fw-bold">INCIDENT STATUS</label>
+                    <select class="form-select-soc" id="modal-alert-status-select">
+                        <option value="New">New</option>
+                        <option value="Investigating">Investigating</option>
+                        <option value="Resolved">Resolved</option>
+                    </select>
+                </div>
+                <div class="col-sm-7">
+                    <label class="text-dim small fw-bold">BLOCKLIST QUICK ACTION</label>
+                    <div>
+                        <button type="button" class="btn btn-soc-danger btn-sm w-100" id="btn-modal-add-blocklist">
+                            <i class="bi bi-slash-circle"></i> Add Source to Blocklist
+                        </button>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="text-dim small fw-bold">ANALYST INVESTIGATION NOTES</label>
+                    <textarea class="form-control-soc" id="modal-alert-notes" rows="2" placeholder="Record triage findings, firewall ticket ID, or root cause analysis..."></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer-soc">
+            <button type="button" class="btn btn-soc-outline" id="btn-cancel-modal">Close</button>
+            <button type="button" class="btn btn-soc-primary" id="btn-save-modal-status">
+                <i class="bi bi-save"></i> Save Triage
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentAlerts = [];
+let activeAlertId = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadAlerts();
+
+    // Filters
+    document.getElementById("filter-severity").addEventListener("change", loadAlerts);
+    document.getElementById("filter-status").addEventListener("change", loadAlerts);
+    
+    let searchTimeout = null;
+    document.getElementById("alert-search").addEventListener("input", () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(loadAlerts, 300);
+    });
+
+    // Check all checkbox
+    document.getElementById("check-all-alerts").addEventListener("change", (e) => {
+        const checkboxes = document.querySelectorAll(".alert-select-box");
+        checkboxes.forEach(cb => cb.checked = e.target.checked);
+    });
+
+    // Batch resolve
+    document.getElementById("btn-batch-resolve").addEventListener("click", async () => {
+        const selected = Array.from(document.querySelectorAll(".alert-select-box:checked")).map(cb => Number(cb.value));
+        if (!selected.length) {
+            showToast("Please select at least one alert to resolve.", "warning");
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/alerts/batch-resolve", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ alert_ids: selected })
+            });
+            const data = await res.json();
+            showToast(data.message, "success");
+            loadAlerts();
+        } catch (e) {
+            showToast("Failed to batch resolve.", "error");
+        }
+    });
+
+    // Modal close
+    const modal = document.getElementById("alert-detail-modal");
+    document.getElementById("btn-close-modal").addEventListener("click", () => modal.classList.remove("active"));
+    document.getElementById("btn-cancel-modal").addEventListener("click", () => modal.classList.remove("active"));
+
+    // Save modal status & notes
+    document.getElementById("btn-save-modal-status").addEventListener("click", async () => {
+        if (!activeAlertId) return;
+        const newStatus = document.getElementById("modal-alert-status-select").value;
+        const notes = document.getElementById("modal-alert-notes").value;
+
+        try {
+            const res = await fetch(`/api/alerts/${activeAlertId}/status`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: newStatus, notes: notes })
+            });
+            const json = await res.json();
+            if (json.status === "success") {
+                showToast(`Alert #${activeAlertId} triage saved.`, "success");
+                modal.classList.remove("active");
+                loadAlerts();
+            } else {
+                showToast(json.message, "error");
+            }
+        } catch (e) {
+            showToast("Error updating alert.", "error");
+        }
+    });
+
+    // Modal quick add to blocklist
+    document.getElementById("btn-modal-add-blocklist").addEventListener("click", async () => {
+        const srcIp = document.getElementById("modal-alert-src").innerText;
+        try {
+            const res = await fetch("/api/blocklist", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ip: srcIp, reason: `Blocked from Alert #${activeAlertId}` })
+            });
+            const json = await res.json();
+            if (json.status === "success") {
+                showToast(json.message, "success");
+            } else {
+                showToast(json.message, "error");
+            }
+        } catch (e) {
+            showToast("Failed to add to blocklist.", "error");
+        }
+    });
+});
+
+async function loadAlerts() {
+    const sev = document.getElementById("filter-severity").value;
+    const stat = document.getElementById("filter-status").value;
+    const search = document.getElementById("alert-search").value;
+
+    const params = new URLSearchParams();
+    if (sev !== "ALL") params.append("severity", sev);
+    if (stat !== "ALL") params.append("status", stat);
+    if (search.trim()) params.append("search", search.trim());
+    params.append("limit", "100");
+
+    try {
+        const res = await fetch(`/api/alerts?${params.toString()}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        currentAlerts = json.data.alerts;
+
+        document.getElementById("alerts-count-label").innerText = `Showing ${currentAlerts.length} of ${json.data.total} recorded incidents`;
+
+        const tbody = document.getElementById("alerts-tbody");
+        if (!currentAlerts.length) {
+            tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4">No security alerts matching current filter criteria.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = currentAlerts.map(a => {
+            const sevClass = `badge-${a.severity.toLowerCase()}`;
+            const statClass = `badge-status-${a.status.toLowerCase()}`;
+
+            return `
+                <tr>
+                    <td><input type="checkbox" class="alert-select-box" value="${a.id}"></td>
+                    <td class="font-mono text-dim">#${a.id}</td>
+                    <td class="font-mono small">${formatDate(a.timestamp)}</td>
+                    <td><span class="badge-soc ${sevClass}">${a.severity}</span></td>
+                    <td class="fw-semibold">${escapeHtml(a.detection_type)}</td>
+                    <td class="font-mono"><a href="/ip-analysis?ip=${encodeURIComponent(a.src_ip)}" class="text-info text-decoration-none">${escapeHtml(a.src_ip)}</a></td>
+                    <td class="font-mono text-dim">${escapeHtml(a.dst_ip)}</td>
+                    <td><span class="badge-soc ${statClass}">${a.status}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-soc-outline py-0 px-2" onclick="openAlertModal(${a.id})">
+                            Investigate
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join("");
+
+    } catch (e) {
+        showToast("Failed to fetch alerts.", "error");
+    }
+}
+
+function openAlertModal(alertId) {
+    const alert = currentAlerts.find(a => a.id === alertId);
+    if (!alert) return;
+
+    activeAlertId = alert.id;
+    document.getElementById("modal-alert-title").innerText = `Incident Investigation #${alert.id} - ${alert.detection_type}`;
+    document.getElementById("modal-alert-id").innerText = `#${alert.id}`;
+    document.getElementById("modal-alert-time").innerText = alert.timestamp;
+    
+    const sevBadge = document.getElementById("modal-alert-severity");
+    sevBadge.innerHTML = `<span class="badge-soc badge-${alert.severity.toLowerCase()}">${alert.severity}</span>`;
+
+    const confEl = document.getElementById("modal-alert-confidence");
+    if (alert.is_confirmed_attack) {
+        confEl.innerHTML = `<span class="text-danger"><i class="bi bi-shield-fill-x"></i> Confirmed Attack Signature</span>`;
+    } else {
+        confEl.innerHTML = `<span class="text-warning"><i class="bi bi-shield-shaded"></i> Suspicious Behavioral Anomaly</span>`;
+    }
+
+    document.getElementById("modal-alert-src").innerText = alert.src_ip;
+    document.getElementById("modal-alert-dst").innerText = alert.dst_ip;
+    document.getElementById("modal-alert-desc").innerText = alert.description;
+    document.getElementById("modal-alert-rec").innerText = alert.recommendation;
+    document.getElementById("modal-alert-status-select").value = alert.status;
+    document.getElementById("modal-alert-notes").value = alert.notes || "";
+
+    document.getElementById("alert-detail-modal").classList.add("active");
+}
+</script>
+{% endblock %}
+
