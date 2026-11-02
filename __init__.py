@@ -1,2 +1,2 @@
-# NetShield-NIDS Tests Package
+# NetShield-NIDS Database Package
 
